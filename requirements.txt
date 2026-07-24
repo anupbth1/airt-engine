@@ -1,0 +1,37 @@
+# AIRT-Engine - Dependencies
+
+# Core ML
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.36.0
+accelerate>=0.25.0
+sentencepiece>=0.1.99
+protobuf>=3.20.3
+
+# Inference Optimization (CPU + GPU)
+llama-cpp-python>=0.2.0  # CPU-optimized inference
+vllm>=0.3.0              # GPU inference with PagedAttention
+flash-attn>=2.5.0        # Fast attention (GPU)
+
+# Quantization
+auto-gptq>=0.6.0         # GPTQ quantization
+autoawq>=0.2.0           # AWQ quantization
+bitsandbytes>=0.41.0     # QLoRA quantization
+
+# Multi-modal
+pillow>=10.0.0           # Image processing
+opencv-python>=4.8.0     # Video processing
+openai-whisper>=20231117 # Speech-to-text
+edge-tts>=6.0.0          # Text-to-speech (free API)
+
+# Web Server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+jinja2>=3.1.2
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.66.0
+pyyaml>=6.0
+requests>=2.31.0
