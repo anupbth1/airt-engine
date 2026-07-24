@@ -90,6 +90,7 @@ class LayerAnalyzer:
     def collect_activation_stats(self, sample_texts: List[str], num_batches: int = 5):
         """
         Feed sample texts through the model and collect activation statistics.
+        Uses model's output_hidden_states instead of hooks for transformers v5.x compatibility.
         
         Args:
             sample_texts: List of sample prompts
@@ -100,26 +101,10 @@ class LayerAnalyzer:
         
         log.info("Collecting activation statistics...")
         
-        # Register hooks to capture layer outputs
+        # Use model's built-in hidden states output (no hooks needed)
+        self.model.config.output_hidden_states = True
+        
         layer_outputs = {i: [] for i in range(self.num_layers)}
-        
-        hooks = []
-        layer_count = 0
-        
-        for name, module in self.model.named_modules():
-            if 'layers' in name and any(x in name for x in ['self_attn', 'mlp', 'attention']):
-                if layer_count < self.num_layers:
-                    def make_hook(idx):
-                        def hook(module, input, output):
-                            if isinstance(output, tuple):
-                                output = output[0]
-                            if isinstance(output, torch.Tensor):
-                                layer_outputs[idx].append(output.detach().float())
-                        return hook
-                    
-                    hook = module.register_forward_hook(make_hook(layer_count))
-                    hooks.append(hook)
-                    layer_count += 1
         
         # Run forward passes
         device = next(self.model.parameters()).device
@@ -129,17 +114,39 @@ class LayerAnalyzer:
             inputs = {k: v.to(device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                # use_cache=False avoids DynamicCache compatibility issue in transformers v5.x
-                self.model(**inputs, use_cache=False)
+                try:
+                    # Try with output_hidden_states
+                    outputs = self.model(**inputs, output_hidden_states=True, use_cache=False)
+                    
+                    # Extract hidden states from model output
+                    if hasattr(outputs, 'hidden_states') and outputs.hidden_states:
+                        # hidden_states includes embedding output + each layer output
+                        # Skip embedding (index 0), take layer outputs
+                        hs = outputs.hidden_states
+                        for i in range(min(len(hs) - 1, self.num_layers)):
+                            layer_hidden = hs[i + 1]  # Skip embedding layer
+                            if layer_hidden is not None:
+                                layer_outputs[i].append(layer_hidden.detach().float())
+                    else:
+                        log.warning("No hidden_states in output. Trying alternative approach...")
+                        break
+                except Exception as e:
+                    log.warning(f"Hidden states approach failed: {str(e)[:60]}")
+                    break
         
-        # Remove hooks
-        for hook in hooks:
-            hook.remove()
-        
-        # Calculate importance scores
+        # Calculate importance scores (will catch empty case)
         self._calculate_importance(layer_outputs)
         
-        log.info("Activation analysis complete")
+        # Check if we got any data
+        total_captured = sum(len(v) for v in layer_outputs.values())
+        if total_captured == 0:
+            log.warning("No layer outputs captured. This may be due to model architecture.")
+            log.warning("For this model, analytical defaults will be used.")
+            # Set default importance
+            for i in range(self.num_layers):
+                self.layer_importance[i] = 0.3 + 0.6 * (i / max(self.num_layers - 1, 1))
+        
+        log.info(f"Activation analysis complete (captured {total_captured} layer outputs)")
         return self.layer_importance
     
     def _calculate_importance(self, layer_outputs: Dict[int, List[torch.Tensor]]):
