@@ -63,49 +63,50 @@ class InferenceRunner:
     def _generate_transformers(self, model, tokenizer, prompt, max_tokens, temperature, top_p, stream):
         """Generate using HuggingFace transformers."""
         inputs = tokenizer(prompt, return_tensors="pt")
-        device = next(model.parameters()).device
-        inputs = {k: v.to(device) for k, v in inputs.items()}
+        device = next(model.parameters()).device  
+        input_ids = inputs['input_ids'].to(device)
+        attention_mask = inputs.get('attention_mask', torch.ones_like(input_ids)).to(device)
         
         if stream:
             return self._stream_transformers(model, tokenizer, inputs, max_tokens, temperature, top_p)
         
-        with torch.no_grad():
-            # transformers v5.x compatibility: use GenerationMixin explicitly
-            from transformers import GenerationMixin
-            if isinstance(model, GenerationMixin):
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    do_sample=temperature > 0,
-                    pad_token_id=tokenizer.eos_token_id,
-                )
-            elif hasattr(model, 'generate'):
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    do_sample=temperature > 0,
-                    pad_token_id=tokenizer.eos_token_id,
-                )
-            else:
-                # Fallback: use pipeline WITHOUT device arg (conflicts with accelerate)
-                from transformers import pipeline
-                pipe = pipeline('text-generation', model=model, tokenizer=tokenizer)
-                outputs = pipe(
-                    prompt,
-                    max_new_tokens=max_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    do_sample=temperature > 0,
-                    return_full_text=False,
-                )
-                response = outputs[0]['generated_text'].strip()
-                return response
+        # Manual generation loop (bypasses GenerationMixin/pipeline issues in transformers v5.x)
+        generated = input_ids
+        eos_token_id = tokenizer.eos_token_id
         
-        response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+        for _ in range(max_tokens):
+            with torch.no_grad():
+                # Forward pass - this ALWAYS works
+                outputs = model(input_ids=generated, attention_mask=attention_mask, use_cache=False)
+                logits = outputs.logits[:, -1, :]  # Last token logits
+                
+                # Apply temperature and top_p
+                if temperature > 0:
+                    logits = logits / temperature
+                    probs = torch.softmax(logits, dim=-1)
+                    
+                    # Top-p filtering
+                    if top_p < 1.0:
+                        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+                        cumsum_probs = torch.cumsum(sorted_probs, dim=-1)
+                        mask = cumsum_probs - sorted_probs > (1 - top_p)
+                        sorted_probs[mask] = 0.0
+                        sorted_probs = sorted_probs / sorted_probs.sum(dim=-1, keepdim=True)
+                        probs = torch.zeros_like(probs).scatter_(-1, sorted_indices, sorted_probs)
+                    
+                    # Sample
+                    next_token = torch.multinomial(probs, num_samples=1)
+                else:
+                    # Greedy
+                    next_token = logits.argmax(dim=-1, keepdim=True)
+                
+                generated = torch.cat([generated, next_token], dim=1)
+                attention_mask = torch.cat([attention_mask, attention_mask.new_ones(attention_mask.shape[0], 1)], dim=1)
+                
+                if next_token.item() == eos_token_id:
+                    break
+        
+        response = tokenizer.decode(generated[0][input_ids.shape[1]:], skip_special_tokens=True)
         return response.strip()
     
     def _stream_transformers(self, model, tokenizer, inputs, max_tokens, temperature, top_p):
