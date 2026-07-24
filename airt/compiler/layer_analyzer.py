@@ -129,7 +129,8 @@ class LayerAnalyzer:
             inputs = {k: v.to(device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                self.model(**inputs)
+                # use_cache=False avoids DynamicCache compatibility issue in transformers v5.x
+                self.model(**inputs, use_cache=False)
         
         # Remove hooks
         for hook in hooks:
