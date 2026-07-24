@@ -41,14 +41,27 @@ class LayerAnalyzer:
     def load_model(self):
         """Load model for analysis."""
         log.info(f"Loading model: {self.model_name}")
+        
+        # First load config
+        from transformers import AutoConfig
+        try:
+            config = AutoConfig.from_pretrained(self.model_name, trust_remote_code=True)
+        except:
+            config = None
+        
+        # Load model with proper settings for transformers v5.x compatibility
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map="auto" if torch.cuda.is_available() else None,
             trust_remote_code=True,
-            output_attentions=False,
-            output_hidden_states=True,
         )
+        
+        # Enable hidden states output via config after loading
+        if hasattr(self.model, 'config'):
+            self.model.config.output_hidden_states = True
+            self.model.config.output_attentions = False
+        
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
         
         # Detect model architecture
