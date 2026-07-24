@@ -1,0 +1,34 @@
+# AIRT-Engine - Colab-Compatible Dependencies
+# These work on Google Colab without build issues
+
+# Core ML (Colab has torch pre-installed)
+transformers>=4.36.0
+accelerate>=0.25.0
+sentencepiece>=0.1.99
+protobuf>=3.20.3
+
+# Multi-modal
+pillow>=10.0.0
+openai-whisper>=20231117
+
+# Web Server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+jinja2>=3.1.2
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.66.0
+pyyaml>=6.0
+requests>=2.31.0
+
+# Edge TTS (no GPU needed)
+edge-tts>=6.0.0
+
+# Fallback-only (skip if fails)
+# auto-gptq - skip on Colab, use on RunPod
+# autoawq - skip on Colab, use on RunPod
+# bitsandbytes - skip on Colab, use on RunPod
+# flash-attn - skip on Colab, use on RunPod
+# vllm - skip on Colab, use on RunPod
