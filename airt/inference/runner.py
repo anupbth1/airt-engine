@@ -91,16 +91,15 @@ class InferenceRunner:
                     pad_token_id=tokenizer.eos_token_id,
                 )
             else:
-                # Fallback: use pipeline
+                # Fallback: use pipeline WITHOUT device arg (conflicts with accelerate)
                 from transformers import pipeline
-                pipe = pipeline('text-generation', model=model, tokenizer=tokenizer, device=device)
+                pipe = pipeline('text-generation', model=model, tokenizer=tokenizer)
                 outputs = pipe(
                     prompt,
                     max_new_tokens=max_tokens,
                     temperature=temperature,
                     top_p=top_p,
                     do_sample=temperature > 0,
-                    pad_token_id=tokenizer.eos_token_id,
                     return_full_text=False,
                 )
                 response = outputs[0]['generated_text'].strip()
