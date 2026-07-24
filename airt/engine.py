@@ -57,7 +57,7 @@ class AIRTEngine:
         log.info(f"Quantization: {config.quantize} ({config.quantization_method}, {config.quantization_bits}-bit)")
         
         self.runner = InferenceRunner()
-        self.benchmark = Benchmark()
+        self.benchmark_runner = Benchmark()
         self.profiler = ModelProfiler()
         self.quantizer = Quantizer()
         self.loader = ModelLoader()
@@ -148,8 +148,8 @@ class AIRTEngine:
                                             max_tokens=100, temperature=0.0)
         
         # Run benchmark
-        results = self.benchmark.full_benchmark(generate_fn, model, model_name)
-        self.benchmark.print_report(results)
+        results = self.benchmark_runner.full_benchmark(generate_fn, model, model_name)
+        self.benchmark_runner.print_report(results)
         
         return results
     
