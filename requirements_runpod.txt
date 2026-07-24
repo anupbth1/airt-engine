@@ -1,0 +1,37 @@
+# AIRT-Engine - RunPod / GPU Server Dependencies
+# Install these on RunPod or GPU instances
+
+# Core ML
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.36.0
+accelerate>=0.25.0
+sentencepiece>=0.1.99
+protobuf>=3.20.3
+
+# GPU Inference
+vllm>=0.3.0
+flash-attn>=2.5.0
+
+# Quantization (GPU)
+auto-gptq>=0.6.0
+autoawq>=0.2.0
+bitsandbytes>=0.41.0
+
+# Multi-modal
+pillow>=10.0.0
+opencv-python>=4.8.0
+openai-whisper>=20231117
+edge-tts>=6.0.0
+
+# Web Server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+jinja2>=3.1.2
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.66.0
+pyyaml>=6.0
+requests>=2.31.0

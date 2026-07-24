@@ -9,14 +9,14 @@ sentencepiece>=0.1.99
 protobuf>=3.20.3
 
 # Inference Optimization (CPU + GPU)
-llama-cpp-python>=0.2.0  # CPU-optimized inference
-vllm>=0.3.0              # GPU inference with PagedAttention
-flash-attn>=2.5.0        # Fast attention (GPU)
+# llama-cpp-python>=0.2.0  # CPU-optimized inference
+# vllm>=0.3.0              # GPU inference with PagedAttention
+# flash-attn>=2.5.0        # Fast attention (GPU)
 
 # Quantization
-auto-gptq>=0.6.0         # GPTQ quantization
-autoawq>=0.2.0           # AWQ quantization
-bitsandbytes>=0.41.0     # QLoRA quantization
+# auto-gptq>=0.6.0         # GPTQ quantization
+# autoawq>=0.2.0           # AWQ quantization
+# bitsandbytes>=0.41.0     # QLoRA quantization
 
 # Multi-modal
 pillow>=10.0.0           # Image processing
