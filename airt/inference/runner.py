@@ -70,14 +70,41 @@ class InferenceRunner:
             return self._stream_transformers(model, tokenizer, inputs, max_tokens, temperature, top_p)
         
         with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                do_sample=temperature > 0,
-                pad_token_id=tokenizer.eos_token_id,
-            )
+            # transformers v5.x compatibility: use GenerationMixin explicitly
+            from transformers import GenerationMixin
+            if isinstance(model, GenerationMixin):
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=temperature > 0,
+                    pad_token_id=tokenizer.eos_token_id,
+                )
+            elif hasattr(model, 'generate'):
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=temperature > 0,
+                    pad_token_id=tokenizer.eos_token_id,
+                )
+            else:
+                # Fallback: use pipeline
+                from transformers import pipeline
+                pipe = pipeline('text-generation', model=model, tokenizer=tokenizer, device=device)
+                outputs = pipe(
+                    prompt,
+                    max_new_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    do_sample=temperature > 0,
+                    pad_token_id=tokenizer.eos_token_id,
+                    return_full_text=False,
+                )
+                response = outputs[0]['generated_text'].strip()
+                return response
         
         response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
         return response.strip()
